@@ -9,6 +9,8 @@ import System.IO.VFS
 import Control.Monad.Trans.Except
 
 data ReadOnlyFS a = ReadOnlyFS a
+data ReadOnlyFile a = ReadOnlyFile a
+data ReadOnlyDirectory a = ReadOnlyDirectory a
 
 readOnly :: (VFS a) => a -> ReadOnlyFS a
 readOnly = ReadOnlyFS
@@ -18,17 +20,19 @@ instance (VFS a) => WrappingVFS (ReadOnlyFS a) where
     innerFS (ReadOnlyFS ifs) = ifs
 
 instance (VFS a) => VFS (ReadOnlyFS a) where
-    data File (ReadOnlyFS a) = ReadOnlyFile (File a)
-    data Directory (ReadOnlyFS a) = ReadOnlyDirectory (Directory a)
-    files (ReadOnlyDirectory child) = do
+    type File (ReadOnlyFS a) = ReadOnlyFile (File a)
+    type Directory (ReadOnlyFS a) = ReadOnlyDirectory (Directory a)
+    lsFiles (ReadOnlyDirectory child) = do
         ofs <- config
-        result <- runInnerFS ofs $ files child
+        result <- runInnerFS ofs $ lsFiles child
         return $ ReadOnlyFile <$> result
-    dirs (ReadOnlyDirectory child) = do
+    lsDirs (ReadOnlyDirectory child) = do
         ofs <- config
-        result <- runInnerFS ofs $ dirs child
+        result <- runInnerFS ofs $ lsDirs child
         return $ ReadOnlyDirectory <$> result
-    mkdir d s = throwE UNSUPPORTED_OP
+    mkDir d s = throwE UNSUPPORTED_OP
+    rmDir d = throwE UNSUPPORTED_OP
+    rmFile f = throwE UNSUPPORTED_OP
     file fp = do
         ofs <- config
         result <- runInnerFS ofs $ file fp

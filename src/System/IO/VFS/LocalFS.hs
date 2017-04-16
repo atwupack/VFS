@@ -10,39 +10,40 @@ import System.IO.VFS
 import System.Directory
 import System.FilePath
 import Control.Monad.Trans.Except
+import Control.Monad.IO.Class
 
-data LocalFS = LocalFS
-    deriving (Show)
+data LocalFS = LocalFS deriving (Show)
+data FileLFS = FileLFS FilePath deriving (Show)
+data DirectoryLFS = DirectoryLFS FilePath deriving (Show)
 
 instance VFS LocalFS where
-    data File LocalFS = FileLFS FilePath deriving (Show)
-    data Directory LocalFS = DirectoryLFS FilePath deriving (Show)
-
-    files (DirectoryLFS fp) = do
-        content <- io $ listDirectory fp
-        filelist <- io $ filterM doesFileExist content
+    type File LocalFS = FileLFS
+    type Directory LocalFS = DirectoryLFS
+    lsFiles (DirectoryLFS fp) = do
+        content <- liftIO $ listDirectory fp
+        filelist <- liftIO $ filterM doesFileExist content
         return $ FileLFS <$> filelist
-
-    dirs (DirectoryLFS fp) = do
-        content <- io $ listDirectory fp
-        filelist <- io $ filterM doesDirectoryExist content
+    lsDirs (DirectoryLFS fp) = do
+        content <- liftIO $ listDirectory fp
+        filelist <- liftIO $ filterM doesDirectoryExist content
         return $ DirectoryLFS <$> filelist
-
-    mkdir (DirectoryLFS fp) name = do
-        io $ createDirectory newDir
+    rmFile (FileLFS fp) = do
+        liftIO $ removeFile fp
+    mkDir (DirectoryLFS fp) name = do
+        liftIO $ createDirectory newDir
         return $ DirectoryLFS newDir
         where
             newDir = fp </> name
-
+    rmDir (DirectoryLFS fp) = do
+        liftIO $ removeDirectory fp
     file fp = do
-        ex <- io $ doesFileExist fp
+        ex <- liftIO $ doesFileExist fp
         if ex then
             return $ FileLFS fp
             else
             throwE NOT_A_FILE
-
     dir fp = do
-        ex <- io $ doesDirectoryExist fp
+        ex <- liftIO $ doesDirectoryExist fp
         if ex then
             return $ DirectoryLFS fp
             else
